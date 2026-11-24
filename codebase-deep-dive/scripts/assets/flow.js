@@ -60,7 +60,9 @@
     let src = v.nodes;
     const ghost = new Set();
     if (state.view === 'file' && state.scope) {
-      const inside = new Set(src.filter((n) => n.group === state.scope).map((n) => n.id));
+      // A scope is a top-level folder or any folder below it (src/flask).
+      const pre = state.scope.replace(/\/+$/, '') + '/';
+      const inside = new Set(src.filter((n) => n.group === state.scope || n.id.startsWith(pre)).map((n) => n.id));
       const keep = new Set(inside);
       for (const e of v.edges) {
         if (inside.has(e.s)) keep.add(e.t);

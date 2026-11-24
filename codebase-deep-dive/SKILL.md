@@ -95,7 +95,7 @@ These are not optional. They apply to the pages, to any extra diagram you draw, 
 
 - Only static `import`, `from ... import`, `require()` and `export ... from` are followed. Dynamic imports, string-built paths, plugin loading and framework conventions (for example, file-based routing) are not.
 - Python: absolute imports resolve from the repo root, `src/` or `lib/`. A bare module name is matched only when exactly one file has that name. Standard-library imports are excluded from external dependencies.
-- JavaScript/TypeScript: relative imports resolve with the common extensions and `index` files. Node built-ins are excluded from external dependencies.
+- JavaScript/TypeScript: relative imports resolve with the common extensions and `index` files, and an ESM `.js` name resolves to its `.ts` or `.tsx` source. Path aliases (`@/…`) are not followed. Node built-ins are excluded from external dependencies.
 - Other languages (Go, Rust, Java and so on) get size and language stats only.
 - `node_modules`, `venv`, `dist`, `build`, `vendor`, hidden folders and binary files are skipped. Files over 1 MB are skipped.
 

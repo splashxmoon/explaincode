@@ -8,6 +8,7 @@ import datetime as dt
 import os
 import re
 import sys
+import sysconfig
 
 IGNORE_DIRS = {
     "node_modules", "__pycache__", "venv", "env", "dist", "build", "out",
@@ -33,8 +34,11 @@ MAX_BYTES = 1_000_000
 PY_IMPORT = re.compile(
     r"^\s*(?:from\s+(\.*[\w.]*)\s+import\s+([^\n]*)|import\s+([\w.]+))", re.M
 )
+# The first branch takes a brace list wrapped over several lines
+# (import {\n  a,\n  b,\n} from "./x"); the others stay on one line.
 JS_IMPORT = re.compile(
-    r"""(?:\bimport\b[^'"\n;]*?|\bexport\b[^'"\n;]*?\bfrom\b|\brequire\(|\bimport\()\s*['"]([^'"]+)['"]"""
+    r"""(?:\b(?:import|export)\s+(?:type\s+)?(?:[\w$]+\s*,\s*)?\{[^}]*\}\s*from"""
+    r"""|\bimport\b[^'"\n;]*?|\bexport\b[^'"\n;]*?\bfrom\b|\brequire\(|\bimport\()\s*['"]([^'"]+)['"]"""
 )
 
 
@@ -106,9 +110,35 @@ def python_targets(rel, text, known):
     return internal, external
 
 
+def _stdlib_names():
+    """Top-level standard-library module names.
+
+    sys.stdlib_module_names arrived in Python 3.10. On 3.9 (still the python3
+    that ships with macOS) list the standard-library folder instead.
+    """
+    names = getattr(sys, "stdlib_module_names", None)
+    if names:
+        return frozenset(names)
+    found = set(sys.builtin_module_names) | {"tomllib", "annotationlib"}  # added after 3.9
+    lib = sysconfig.get_paths()["stdlib"]
+    for folder in (lib, os.path.join(lib, "lib-dynload")):
+        try:
+            entries = os.listdir(folder)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry == "site-packages":
+                continue
+            found.add(entry.split(".")[0])
+    return frozenset(found)
+
+
+STDLIB = _stdlib_names()
+
+
 def _add_external(external, top):
     """Record a third-party package, skipping the Python standard library."""
-    if top and top not in sys.stdlib_module_names:
+    if top and top not in STDLIB:
         external.add(top)
 
 
@@ -188,6 +218,12 @@ def _resolve_js(target, known):
     for ext in JS_EXTS:
         if target + "/index" + ext in known:
             return target + "/index" + ext
+    # ESM TypeScript imports name the compiled file: "./plans.js" is plans.ts.
+    stem, ext = os.path.splitext(target)
+    if ext in (".js", ".jsx", ".mjs", ".cjs"):
+        for ts in (".ts", ".tsx"):
+            if stem + ts in known:
+                return stem + ts
     return None
 
 

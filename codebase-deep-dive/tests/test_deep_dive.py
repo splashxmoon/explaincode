@@ -67,6 +67,38 @@ class MapperTests(unittest.TestCase):
         self.assertNotIn("node:fs", by_path["src/index.ts"]["external"])  # Node built-ins are not dependencies
         self.assertIn("src/index.ts", data["entry_points"])
 
+    def test_typescript_esm_and_multiline_imports(self):
+        # ESM TypeScript names the compiled file: './plans.js' means plans.ts.
+        write(self.root, "src/server.ts", (
+            "import { a } from './plans.js';\n"
+            "import {\n  b,\n  c,\n} from './accounts';\n"
+            "export type {\n  T,\n} from './types.js';\n"
+            "import type {\n  U,\n} from 'some-pkg';\n"
+        ))
+        write(self.root, "src/plans.ts", "export const a = 1;\n")
+        write(self.root, "src/accounts.ts", "export const b = 1, c = 2;\n")
+        write(self.root, "src/types.ts", "export type T = 1;\n")
+        write(self.root, "src/View.tsx", "import { a } from './plans.js';\nimport { W } from './Widget.jsx';\n")
+        write(self.root, "src/Widget.tsx", "export const W = 1;\n")
+        data = mapper.map_codebase(self.root)
+        by_path = {f["path"]: f for f in data["files"]}
+        self.assertEqual(
+            by_path["src/server.ts"]["imports"],
+            ["src/accounts.ts", "src/plans.ts", "src/types.ts"],
+        )
+        self.assertIn("some-pkg", by_path["src/server.ts"]["external"])
+        self.assertEqual(by_path["src/View.tsx"]["imports"], ["src/Widget.tsx", "src/plans.ts"])
+
+    def test_stdlib_list_without_stdlib_module_names(self):
+        # Python 3.9 (the macOS python3) has no sys.stdlib_module_names.
+        from unittest import mock
+        with mock.patch.object(sys, "stdlib_module_names", None, create=True):
+            names = mapper._stdlib_names()
+        for name in ("os", "json", "asyncio", "collections", "math", "tomllib"):
+            self.assertIn(name, names)
+        self.assertNotIn("requests", names)
+        self.assertNotIn("site-packages", names)
+
     def test_ignores_vendor_hidden_and_binary(self):
         write(self.root, "node_modules/x/index.js", "module.exports=1")
         write(self.root, ".hidden/a.py", "x=1")

@@ -24,6 +24,11 @@ def fmt(n):
     return f"{n:,}"
 
 
+def n_files(n):
+    """'1 file', '12 files', '1,204 files'."""
+    return f"{fmt(n)} file" + ("" if n == 1 else "s")
+
+
 def pct(part, whole):
     return f"{100 * part / whole:.1f}%" if whole else "0%"
 
@@ -192,10 +197,10 @@ def architecture_svg(arch):
             sub = f"{head}/ · {fmt(node['lines'])} lines"
         else:
             short = name if len(name) <= 24 else name[:23] + "…"
-            sub = f"{node['files']} files · {fmt(node['lines'])} lines"
+            sub = f"{n_files(node['files'])} · {fmt(node['lines'])} lines"
         sub = sub if len(sub) <= 34 else sub[:33] + "…"
         out.append(
-            f'<g><title>{esc(name)}: {node["files"]} files, {fmt(node["lines"])} lines</title>'
+            f'<g><title>{esc(name)}: {n_files(node["files"])}, {fmt(node["lines"])} lines</title>'
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{ARCH_BOX_W}" height="{ARCH_BOX_H}" rx="10" '
             f'fill="var(--surface, #1b2128)" stroke="{border}" stroke-width="2"{dash}/>'
             f'<rect x="{x:.1f}" y="{y:.1f}" width="5" height="{ARCH_BOX_H}" rx="2" fill="{series(r)}"/>'
@@ -360,7 +365,7 @@ def language_bar(data):
         )
         legend.append(
             f'<li><span class="sw" style="background:{series(i)}"></span>'
-            f'{esc(lang["name"])} <span class="muted">{pct(lang["lines"], t)} · {fmt(lang["files"])} files</span></li>'
+            f'{esc(lang["name"])} <span class="muted">{pct(lang["lines"], t)} · {n_files(lang["files"])}</span></li>'
         )
         x += w
     bar = f'<svg class="langbar" viewBox="0 0 100 10" preserveAspectRatio="none">{"".join(segs)}</svg>'
